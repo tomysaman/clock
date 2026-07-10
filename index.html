@@ -18,6 +18,7 @@
     --btn-bg: #262626;
     --btn-hover: #303030;
     --shadow: rgba(0, 0, 0, 0.5);
+    --clock-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   :root.light {
     --bg: #d8d8d4;
@@ -105,6 +106,7 @@
     color: var(--digit);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    font-family: var(--clock-font);
   }
   .half.top span, .flap-top span { top: 0; }
   .half.bottom span, .flap-bottom span { top: -100%; }
@@ -220,6 +222,17 @@
     text-align: left;
   }
   .row-btn:hover { background: var(--btn-hover); }
+
+  select.row-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--panel-text) 50%),
+                       linear-gradient(135deg, var(--panel-text) 50%, transparent 50%);
+    background-position: right 12px top 55%, right 6px top 55%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 26px;
+  }
 </style>
 </head>
 <body>
@@ -250,6 +263,10 @@
   <section>
     <h3>Appearance</h3>
     <button class="row-btn" id="modeBtn">Switch to light mode</button>
+  </section>
+  <section>
+    <h3>Font</h3>
+    <select class="row-btn" id="fontSelect"></select>
   </section>
   <section>
     <h3>Display</h3>
@@ -346,13 +363,46 @@
     { name: "rose",    dark: "#c98a96", light: "#8c3b4a" },
     { name: "violet",  dark: "#a48ec9", light: "#5b3f8c" }
   ];
+  // Top 100 Google Fonts by live popularity ranking (fonts.google.com/metadata/fonts).
+  var FONTS = [
+    "Roboto", "Open Sans", "Google Sans", "Inter", "Montserrat", "Poppins", "Noto Sans JP",
+    "Roboto Mono", "Lato", "DM Sans", "Arimo", "Archivo Black", "Noto Sans KR", "Noto Sans",
+    "Kanit", "Merriweather", "Manrope", "Playfair Display", "Roboto Condensed", "Noto Sans TC",
+    "Oswald", "Black Ops One", "PT Sans", "Saira", "Figtree", "Bricolage Grotesque", "Ubuntu",
+    "Share Tech", "Plus Jakarta Sans", "Smooch Sans", "IBM Plex Sans", "Mulish", "Raleway",
+    "Karla", "Heebo", "Fira Sans", "Noto Serif", "Nunito Sans", "Nunito", "Fjalla One",
+    "Lobster Two", "Changa One", "Rubik", "JetBrains Mono", "Roboto Slab", "Libre Baskerville",
+    "Libre Franklin", "Noto Serif JP", "Source Code Pro", "Space Grotesk", "Prompt",
+    "Cormorant Garamond", "Josefin Sans", "Quicksand", "Outfit", "EB Garamond", "Nanum Gothic",
+    "Anton", "Barlow", "Alfa Slab One", "Jost", "Roboto Flex", "Cabin", "Bebas Neue",
+    "Instrument Serif", "Dosis", "Bitter", "Sora", "Schibsted Grotesk", "Mukta",
+    "Noto Sans Telugu", "Work Sans", "Ramabhadra", "Rajdhani", "Hind Siliguri", "Exo 2",
+    "M PLUS Rounded 1c", "Anek Telugu", "Fredoka", "Orbitron", "Urbanist", "Lilita One",
+    "Caveat", "Lora", "Overpass", "IBM Plex Mono", "Crimson Text", "Inconsolata", "Geist",
+    "Oxygen", "Fraunces", "DM Serif Display", "Source Serif 4", "Tajawal", "Source Sans 3",
+    "Slabo 27px", "Bungee", "Pacifico", "Noto Sans Arabic", "Assistant"
+  ];
+  var SYSTEM_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  var fontLinkEl = null;
+
+  function loadGoogleFont(family) {
+    if (!fontLinkEl) {
+      fontLinkEl = document.createElement("link");
+      fontLinkEl.rel = "stylesheet";
+      document.head.appendChild(fontLinkEl);
+    }
+    fontLinkEl.href = "https://fonts.googleapis.com/css2?family=" +
+      family.replace(/ /g, "+") + ":wght@400;600;700&display=swap";
+  }
+
   var STORE_KEY = "flipclock-prefs";
-  var prefs = { theme: "default", light: false };
+  var prefs = { theme: "default", light: false, font: "" };
   try {
     var saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (saved && typeof saved === "object") {
       if (typeof saved.theme === "string") prefs.theme = saved.theme;
       if (typeof saved.light === "boolean") prefs.light = saved.light;
+      if (typeof saved.font === "string") prefs.font = saved.font;
     }
   } catch (e) { /* corrupted or unavailable storage: use defaults */ }
 
@@ -363,6 +413,7 @@
   var root = document.documentElement;
   var modeBtn = document.getElementById("modeBtn");
   var swatchesEl = document.getElementById("swatches");
+  var fontSelect = document.getElementById("fontSelect");
 
   function applyPrefs() {
     var t = THEMES[0];
@@ -377,6 +428,14 @@
     for (var j = 0; j < btns.length; j++) {
       btns[j].classList.toggle("active", btns[j].dataset.theme === prefs.theme);
     }
+
+    if (prefs.font) {
+      loadGoogleFont(prefs.font);
+      root.style.setProperty("--clock-font", '"' + prefs.font + '", sans-serif');
+    } else {
+      root.style.setProperty("--clock-font", SYSTEM_FONT_STACK);
+    }
+    fontSelect.value = prefs.font;
   }
 
   THEMES.forEach(function (t) {
@@ -396,6 +455,24 @@
 
   modeBtn.addEventListener("click", function () {
     prefs.light = !prefs.light;
+    save();
+    applyPrefs();
+  });
+
+  (function () {
+    var defOpt = document.createElement("option");
+    defOpt.value = "";
+    defOpt.textContent = "System Default";
+    fontSelect.appendChild(defOpt);
+    FONTS.forEach(function (name) {
+      var opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      fontSelect.appendChild(opt);
+    });
+  })();
+  fontSelect.addEventListener("change", function () {
+    prefs.font = fontSelect.value;
     save();
     applyPrefs();
   });
